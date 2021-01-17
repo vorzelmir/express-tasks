@@ -1,4 +1,6 @@
 const express = require('express');
+const Joi = require('joi');
+const validator = require('express-joi-validation').createValidator({});
 const users = require('./data/users');
 
 const app = express();
@@ -49,7 +51,7 @@ const getUser = (req, res) => {
     res.json(
       users.filter(
         (user) => user.id === Number(req.params.id)
-                    && user.name === req.params.name,
+        && user.name === req.params.name,
       ),
     );
   } else {
@@ -67,7 +69,7 @@ const createUser = (req, res) => {
     ...req.body,
   };
 
-  checkUser(newUser, res);
+  // checkUser(newUser, res);
   users.push(newUser);
   res.send(users);
 };
@@ -79,7 +81,7 @@ const createUserById = (req, res) => {
     id: newId,
     ...req.body,
   };
-  checkUser(newUser, res);
+  // checkUser(newUser, res);
   users.push(newUser);
   res.send(users);
 };
@@ -112,7 +114,11 @@ const updateUser = (req, res) => {
 // delete user
 const deleteUser = (req, res) => {
   const found = users.some((user) => user.id === Number(req.params.id));
-  if (found) {
+  if (!found) {
+    res.status(400).json({
+      message: `Can not delete ${req.params.id} user`,
+    });
+  } else {
     res.json({
       message: 'User deleted ',
       user: users.filter((user) => user.id !== Number(req.params.id)),
@@ -120,12 +126,33 @@ const deleteUser = (req, res) => {
   }
 };
 
+const schemaCreateUser = Joi.object({
+  name: Joi.string().required(),
+  age: Joi.number().required(),
+  active: Joi.boolean().required(),
+});
+
+const schemaGetUser = Joi.object({
+  id: Joi.required(),
+  name: Joi.string().required(),
+});
+
+const schemaUpdateUser = Joi.object({
+  name: Joi.string(),
+  age: Joi.number(),
+  active: Joi.boolean(),
+});
+
+const schemaDeletUser = Joi.object({
+  id: Joi.required(),
+});
+
 app.get('/api/users', getAllUsers);
-app.get('/api/users/:id/:name', getUser);
-app.post('/api/users', createUser);
-app.post('/api/users/:id', createUserById);
-app.put('/api/users/:id', updateUser);
-app.delete('/api/users/:id', deleteUser);
+app.get('/api/users/:id/:name', validator.params(schemaGetUser), getUser);
+app.post('/api/users', validator.body(schemaCreateUser), createUser);
+app.post('/api/users/:id', validator.body(schemaCreateUser), createUserById);
+app.put('/api/users/:id', validator.body(schemaUpdateUser), updateUser);
+app.delete('/api/users/:id', validator.params(schemaDeletUser), deleteUser);
 
 // Server
 app.listen(PORT, () => {
